@@ -58,6 +58,56 @@ A market account holds **zero native gas for its entire life**, and that is a pr
 rather than a convenience: a gas transfer from a trader's own wallet would publish the link between
 them and every position that account will ever hold. The account signs; the relayer sends.
 
+## Source verification
+
+Monad testnet has **two independent explorers, with two separate verification systems**, and
+verifying on one does nothing for the other. This is the detail that wastes an afternoon:
+
+| Explorer | Verification route | Needs a key |
+| --- | --- | --- |
+| [testnet.monadscan.com](https://testnet.monadscan.com) | Etherscan V2 API, `chainid=10143` | yes — an Etherscan key |
+| [testnet.monadexplorer.com](https://testnet.monadexplorer.com) (MonadVision) | its own "Verify Code" flow | — |
+| [sourcify.dev](https://sourcify.dev) | Sourcify, chain 10143 | no |
+
+Every contract above is verified on **Sourcify**, which is the explorer-independent record: it
+recompiles the source and compares it against the deployed bytecode, and anyone can check the
+result without trusting us or any one explorer. Neither Monad explorer reads it, so a contract can
+be fully verified on Sourcify and still show "Contract not verified" on the explorer page — which
+is a statement about that explorer's index, not about the source.
+
+All thirteen, on whichever explorer you name — addresses come from the address book, so it cannot
+drift from what was deployed:
+
+```shell
+$ ./script/verify.sh sourcify                       # no key needed
+$ ETHERSCAN_API_KEY=… ./script/verify.sh monadscan  # one key covers every Etherscan V2 chain
+```
+
+To verify one contract on Sourcify:
+
+```shell
+$ forge verify-contract <address> src/pool/NumeraPoolEntrypoint.sol:NumeraPoolEntrypoint \
+    --chain-id 10143 --verifier sourcify \
+    --verifier-url https://sourcify.dev/server --watch
+```
+
+No `--constructor-args` is needed. Sourcify recompiles and compares the *deployed* bytecode, so it
+derives the arguments rather than being told them — which is one fewer thing to get wrong than the
+Etherscan flow, where a mis-encoded tuple fails with an error that names neither the argument nor
+the type.
+
+To check what is verified rather than trusting the last run:
+
+```shell
+$ curl -s https://sourcify.dev/server/v2/contract/10143/<address> | jq .match
+```
+
+Two settings in `foundry.toml` bear on this and should not be changed casually.
+`bytecode_hash = "none"` and `cbor_metadata = false` strip the metadata trailer from the deployed
+code, which keeps builds reproducible across machines. Verification still reaches a full `match`
+because the comparison is over the bytecode itself, but anything that relies on reading an IPFS
+metadata hash out of the deployed code will find nothing there.
+
 ## Verifying a deployment yourself
 
 The address book records what was deployed, not that it was wired correctly. These read the chain:
