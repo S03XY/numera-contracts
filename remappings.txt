@@ -1,0 +1,6 @@
+forge-std/=lib/forge-std/src/
+@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
+@prb/math/=lib/prb-math/
+lean-imt/=node_modules/@zk-kit/lean-imt.sol/
+poseidon-solidity/=node_modules/poseidon-solidity/
+poseidon/=node_modules/poseidon-solidity/

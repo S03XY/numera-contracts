@@ -1,0 +1,14 @@
+{
+  "lib/openzeppelin-contracts": {
+    "tag": {
+      "name": "v5.1.0",
+      "rev": "69c8def5f222ff96f2b5beff05dfba996368aa79"
+    }
+  },
+  "lib/prb-math": {
+    "tag": {
+      "name": "v4.1.0",
+      "rev": "280fc5f77e1b21b9c54013aac51966be33f4a410"
+    }
+  }
+}

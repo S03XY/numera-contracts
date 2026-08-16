@@ -1,0 +1,85 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc = "0.8.28"
+# Monad is fully Cancun-compatible (PUSH0, MCOPY, TSTORE/TLOAD).
+evm_version = "cancun"
+optimizer = true
+# 200, not 20000. Measured on 2026-08-08, when {LsLmsrMarket} crossed EIP-170 at 25,824 bytes and
+# could not be deployed at all:
+#
+#   runs   runtime size   relayed buy
+#   20000  25,824 (over)  314,508 gas
+#   1000   23,618          316,002
+#   200    22,020          316,745
+#
+# So 20,000 was buying 0.7% of execution gas for 3,804 bytes of code — and on Monad, which bills the
+# gas *limit* rather than the gas used, even that 0.7% is mostly notional. 200 leaves 2.5 KB of
+# headroom for the engine to keep growing, which is worth more than the difference.
+optimizer_runs = 200
+via_ir = false
+bytecode_hash = "none"
+cbor_metadata = false
+# Vendored dependencies ship their own tests/harnesses (OZ Certora harnesses, prb-math unit tests)
+# that reference sources outside our remappings. They are never imported by real code, so exclude
+# them from compilation (required for clean builds).
+skip = ["*certora*", "*prb-math/test*", "*prb-math/script*"]
+
+# Deploy.s.sol writes an address book here. Scoped to that one directory so a script
+# can never read or clobber anything else in the repo.
+fs_permissions = [{access = "read-write", path = "./deployments"}]
+
+remappings = [
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "@prb/math/=lib/prb-math/",
+    "forge-std/=lib/forge-std/src/",
+]
+
+[profile.default.fuzz]
+runs = 512
+max_test_rejects = 100000
+
+[profile.default.invariant]
+runs = 64
+depth = 128
+fail_on_revert = false
+call_override = false
+
+# Pre-deployment gate for the LS-LMSR curve, at the depth its brief calls for. Far too slow for the
+# edit loop — run it before shipping a change to the maths, not on every save:
+#
+#   FOUNDRY_PROFILE=deep forge test --match-path 'test/LsLmsr*'
+#
+# Uniform random inputs do not find fixed-point bugs; the tests bias toward maximum skew, `s` near
+# its floor where b' is largest, and single-wei trades, so these run counts are what actually
+# explore those corners.
+[profile.deep]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc = "0.8.28"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+skip = ["*certora*", "*prb-math/test*", "*prb-math/script*"]
+
+[profile.deep.fuzz]
+runs = 100000
+max_test_rejects = 1000000
+
+[profile.deep.invariant]
+runs = 5000
+depth = 500
+fail_on_revert = false
+
+[fmt]
+line_length = 110
+tab_width = 4
+bracket_spacing = false
+int_types = "long"
+
+# --- Monad deployment endpoints (for later `forge script` use) ---
+[rpc_endpoints]
+monad_testnet = "https://testnet-rpc.monad.xyz"
+monad = "https://rpc.monad.xyz"
